@@ -230,6 +230,7 @@ const otherController = {
       return res.status(500).json({ message: 'Error fetching package', error: error.message });
     }
   },
+  
 
   async getPackagesByType(req, res) {
     const { packageFor } = req.params;
