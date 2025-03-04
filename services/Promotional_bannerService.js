@@ -1,127 +1,383 @@
-import { Promotional_Banner_model ,Banner,Package} from '../models/index.js';
+import { Promotional_Banner_model, Banner, Package, User, OrderHistory } from '../models/index.js';
 import ImageUploader from '../helpers/ImageUploader.js';
 import { DateTime } from "luxon";
+import nodemailer from "nodemailer";
 const PromotionalbannerService = {
-    async createBanner(data) {
-        const userInfo = global.user;
-        
-          let imageUrl = "";
-          if (data.banner_image) {
-            imageUrl = await ImageUploader.Upload(
-              data.banner_image,
-              "Banner_Promotion",
-            );
-          }
-          const startDate = DateTime.fromISO(data.startDate, { zone: 'utc' }).startOf('day').toJSDate();
-          const endDate = DateTime.fromISO(data.endDate, { zone: 'utc' }).startOf('day').toJSDate();
+  async createBanner(data) {
+    const userInfo = global.user;
 
-          const bannerData =new Promotional_Banner_model( {
-            banner_title: data.banner_title,
-            banner_image: imageUrl,
-            startDate: startDate,
-            endDate: endDate,
-            bannerlocationaddress:data.bannerlocationaddress,
-            locationHistory: {
-              point: {
-                type: "Point",
-                coordinates: [parseFloat(data.longitude), parseFloat(data.latitude)],
-              },
-              selectLocation: data.selectLocation,
-            },
-            packageId: data.packageId,
-            userId: userInfo.userId
-          });
-    
-          const banner = await bannerData.save();
-          return banner;
+    let imageUrl = "";
+    if (data.banner_image) {
+      imageUrl = await ImageUploader.Upload(
+        data.banner_image,
+        "Banner_Promotion",
+      );
+    }
+    const startDate = DateTime.fromISO(data.startDate, { zone: 'utc' }).startOf('day').toJSDate();
+    const endDate = DateTime.fromISO(data.endDate, { zone: 'utc' }).startOf('day').toJSDate();
+    const purchasedPackage = await Package.findById(data.packageId);
+    const bannerData = new Promotional_Banner_model({
+      banner_title: data.banner_title,
+      banner_image: imageUrl,
+      startDate: startDate,
+      endDate: endDate,
+      bannerlocationaddress: data.bannerlocationaddress,
+      locationHistory: {
+        point: {
+          type: "Point",
+          coordinates: [parseFloat(data.longitude), parseFloat(data.latitude)],
+        },
+        selectLocation: data.selectLocation,
       },
+      packageId: data.packageId,
+      userId: userInfo.userId
+    });
+    const banner = await bannerData.save();
+    setTimeout(async () => {
+      console.log("Sending email after 10 seconds... with banner id", banner._id);
+      const order = await OrderHistory.findOne({ bannerId: banner._id });
+      const retrivedBanner = await Promotional_Banner_model.findById(banner._id);
+      console.log(retrivedBanner);
+      const user = await User.findById(userInfo.userId);
+      console.log(order);
+      const mail = await PromotionalbannerService.sendMail("Banner", user, retrivedBanner, order.orderId, purchasedPackage);
+      console.log(mail);
+    }, 10000);
+    return banner;
+  },
 
-      async getbanner(){
-        const userinfo=global.user;
-        const myBanner=await Promotional_Banner_model.find({
-          userId:userinfo.userId
-        },{
-          bannerlocationHistory:0
-        }).populate('packageId');
-        return myBanner;
+  async sendMail(userFor = "", user, promotionalBanner, orderId, purchasedPackage) {
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      requireTLS: true,
+      auth: {
+        user: "ad210689@gmail.com",
+        pass: "aocw cfjf jgwe rcpd",
       },
+    });
 
-      async getBannersWithinRadius(latitude, longitude, radiusKm = 25, desiredBannerCount = 5) {
-        // Convert the radius from kilometers to radians
-        const radiusInRadians = radiusKm / 6371;
-        const today = new Date();
-
-        try {
-            // First, get promotional banners within radius
-            const promotionalBanners = await Promotional_Banner_model.find({
-                "locationHistory.point": {
-                    $geoWithin: {
-                        $centerSphere: [[longitude, latitude], radiusInRadians]
+    let mailOptions = {
+      from: "ad210689@gmail.com",
+      to: user.email,
+      subject: "Invoice for Promotional Banner",
+      html: `<!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Invoice</title>
+            <style>
+                body {
+                    font-family: 'Arial', sans-serif;
+                    margin: 0;
+                    padding: 0;
+                    background-color: #f8f9fa;
+                    color: #333;
+                }
+                .invoice-container {
+                    width: 100%;
+                    margin: 0;
+                    background-color: #fff;
+                    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+                }
+                .invoice-header {
+                    background-color: #2c3e50;
+                    color: white;
+                    padding: 20px 40px;
+                    text-align: center;
+                }
+                .invoice-title {
+                    font-size: 28px;
+                    font-weight: bold;
+                    margin: 0;
+                }
+                .order-id {
+                    font-size: 16px;
+                    margin-top: 10px;
+                }
+                .invoice-body {
+                    padding: 30px 5px;
+                }
+                .company-customer {
+                    margin-bottom: 30px;
+                    width: 100%;
+                }
+                .company-info, .customer-info {
+                    width: 100%;
+                    margin-bottom: 20px;
+                }
+                .section-title {
+                    font-size: 16px;
+                    font-weight: bold;
+                    color: #2c3e50;
+                    margin-bottom: 10px;
+                    text-transform: uppercase;
+                    border-bottom: 2px solid #eee;
+                    padding-bottom: 5px;
+                }
+                .info-content {
+                    font-size: 14px;
+                    line-height: 1.6;
+                }
+                .banner-info {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+                .banner-name {
+                    font-size: 16px;
+                    font-weight: bold;
+                    margin-bottom: 5px;
+                }
+                .item-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 30px;
+                }
+                .item-table th, .item-table td {
+                    padding: 12px;
+                    text-align: left;
+                    border: 1px solid #ddd;
+                }
+                .item-table th {
+                    background-color: #2c3e50;
+                    color: white;
+                    text-transform: uppercase;
+                    font-size: 14px;
+                }
+                .item-table td {
+                    font-size: 14px;
+                }
+                .total-section {
+                    background-color: #f8f9fa;
+                    padding: 20px;
+                    border-radius: 5px;
+                    margin-bottom: 30px;
+                }
+                .total-row {
+                    display: flex;
+                    justify-content: space-between;
+                    font-weight: bold;
+                }
+                .total-row.final {
+                    font-size: 18px;
+                    font-weight: bold;
+                    color: #2c3e50;
+                    border-top: 2px solid #ddd;
+                    padding-top: 15px;
+                    margin-top: 10px;
+                }
+                .invoice-footer {
+                    background-color: #f8f9fa;
+                    padding: 20px 40px;
+                    font-size: 14px;
+                    color: #666;
+                    border-top: 1px solid #eee;
+                }
+                .thank-you {
+                    text-align: center;
+                    margin-top: 20px;
+                    font-weight: bold;
+                    color: #2c3e50;
+                }
+                .contact-info {
+                    text-align: center;
+                    margin-top: 10px;
+                }
+                .contact-info a {
+                    color: #2c3e50;
+                    text-decoration: none;
+                }
+                .contact-info a:hover {
+                    text-decoration: underline;
+                }
+                @media print {
+                    body {
+                        background-color: #fff;
+                        padding: 0;
                     }
-                },
-                startDate: { $lte: today },
-                endDate: { $gte: today }
-            }, {
-                locationHistory: 0
-            }).populate('packageId');
+                    .invoice-container {
+                        box-shadow: none;
+                        width: 100%;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="invoice-container">
+                <div class="invoice-header">
+                    <h1 class="invoice-title">INVOICE</h1>
+                    <p class="order-id">Transaction ID: ${orderId}</p>
+                </div>
+                <div class="invoice-body">
+                    <div class="company-customer">
+                        <div class="customer-info">
+                            <div class="section-title">Bill To</div>
+                            <div class="info-content">
+                                <strong>Name: ${user.fullName || 'Customer Name'}</strong><br>
+                                Phone: ${user.phoneNumber || 'Unknown Phone'}<br>
+                                Email: ${user.email || 'Unknown Email'}
+                            </div>
+                        </div>
+                    </div>
+                      <div class="banner-info">
+                <div class="banner-name">Promotional Banner Details</div>
+                <div><strong>Banner Name:</strong> ${promotionalBanner.banner_title}</div>
+                <div><strong>Location:</strong> ${promotionalBanner.bannerlocationaddress}</div>
+                <div><strong>Banner Start Date:</strong> ${new Date(promotionalBanner.startDate).toLocaleDateString()}</div>
+                <div><strong>Banner End Date:</strong> ${new Date(promotionalBanner.endDate).toLocaleDateString()}</div>
+            </div>
+                    <div class="section-title">Invoice Items</div>
+                    <table class="item-table">
+                        <thead>
+                            <tr>
+                                <th>Description</th>
+                                <th>Base Amount</th>
+                                <th>GST (18%)</th>
+                                <th>Total Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>${purchasedPackage.name}</td>
+                                <td>₹${(purchasedPackage.price * 0.82).toFixed(2)}</td>
+                                <td>₹${(purchasedPackage.price * 0.18).toFixed(2)}</td>
+                                <td>₹${purchasedPackage.price.toFixed(2)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
 
-            // If we have enough promotional banners, return them
-            if (promotionalBanners.length >= desiredBannerCount) {
-                return {
-                    banners: promotionalBanners,
-                    source: 'promotional'
-                };
-            }
-            const regularBannersNeeded = desiredBannerCount - promotionalBanners.length;
-            const regularBanners = await Banner.find({
-                isActive: true
-            })
-            .limit(regularBannersNeeded)
-            .select('-__v');
+                    <div class="total-section">
+                        <div class="total-row final">
+                            <div>Total:</div>
+                            <div>₹${purchasedPackage.price.toFixed(2)}</div>
+                        </div>
+                    </div>
+                </div>
 
-            // Combine and format both types of banners
-            const combinedBanners = promotionalBanners.map(banner => ({
-                ...banner.toObject(),
-                bannerType: 'promotional'
-            })).concat(
-                regularBanners.map(banner => ({
-                    ...banner.toObject(),
-                    bannerType: 'regular'
-                }))
-            );
+                <div class="invoice-footer">
+                    <div class="company-info">
+                        <div class="section-title">From</div>
+                        <div class="info-content">
+                            <strong>Nilee Games and Future Technologies Pvt. Ltd</strong><br>
+                            508, 5th, Fly Edge, Building, Swami Vivekananda Rd,<br>
+                            Meghdoot, Hari Om Nagar, Borivali West,<br>
+                            Mumbai, Maharashtra 400092<br>
+                            Email: gullyteam33@gmail.com<br>
+                        </div>
+                    </div>
 
-            return {
-                banners: combinedBanners,
-            };
+                    <div class="thank-you">Thank you for your business!</div>
+                    <div class="contact-info">
+                        For any queries, please contact us at <a href="mailto:gullyteam33@gmail.com">gullyteam33@gmail.com</a>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>`
+    };
 
-        } catch (err) {
-            console.log("Error fetching banners within radius:", err);
-            throw err;
-        }
-    },
-
-    async updateBanner(bannerId,data) {
-
-      let imageUrl = "";
-      if (data.banner_image) {
-        imageUrl = await ImageUploader.Upload(
-          data.banner_image,
-          "Banner_Promotion",
-        );
+    transporter.sendMail(mailOptions, function (error, info) {
+      if (error) {
+        console.log(error);
+      } else {
+        console.log("Mail sent: " + info.response);
+        return true;
       }
+    });
+  },
 
-      const updatedBanner = await Promotional_Banner_model.findByIdAndUpdate(bannerId,{
-        $set:{
-          banner_title: data.banner_title,
-          banner_image: imageUrl,
-        }
-      }, {new:true});
+  async getbanner() {
+    const userinfo = global.user;
+    const myBanner = await Promotional_Banner_model.find({
+      userId: userinfo.userId
+    }, {
+      bannerlocationHistory: 0
+    }).populate('packageId');
+    return myBanner;
+  },
 
-      if (!updatedBanner) {
-          throw new Error('Banner not found for update');
+  async getBannersWithinRadius(latitude, longitude, radiusKm = 25, desiredBannerCount = 5) {
+    // Convert the radius from kilometers to radians
+    const radiusInRadians = radiusKm / 6371;
+    const today = new Date();
+
+    console.log("latitude:", latitude);
+    console.log("longitude:", longitude);
+    try {
+      // First, get promotional banners within radius
+      const promotionalBanners = await Promotional_Banner_model.find({
+        "locationHistory.point": {
+          $geoWithin: {
+            $centerSphere: [[longitude, latitude], radiusInRadians]
+          }
+        },
+        startDate: { $lte: today },
+        endDate: { $gte: today }
+      }, {
+        locationHistory: 0
+      }).populate('packageId');
+      // If we have enough promotional banners, return them
+      if (promotionalBanners.length >= desiredBannerCount) {
+        return {
+          banners: promotionalBanners,
+          source: 'promotional'
+        };
       }
+      const regularBannersNeeded = desiredBannerCount - promotionalBanners.length;
+      const regularBanners = await Banner.find({
+        isActive: true
+      })
+        .limit(regularBannersNeeded)
+        .select('-__v');
 
-      return updatedBanner;
+      // Combine and format both types of banners
+      const combinedBanners = promotionalBanners.map(banner => ({
+        ...banner.toObject(),
+        bannerType: 'promotional'
+      })).concat(
+        regularBanners.map(banner => ({
+          ...banner.toObject(),
+          bannerType: 'regular'
+        }))
+      );
+
+      return {
+        banners: combinedBanners,
+      };
+
+    } catch (err) {
+      console.log("Error fetching banners within radius:", err);
+      throw err;
+    }
+  },
+
+  async updateBanner(bannerId, data) {
+
+    let imageUrl = "";
+    if (data.banner_image) {
+      imageUrl = await ImageUploader.Upload(
+        data.banner_image,
+        "Banner_Promotion",
+      );
+    }
+
+    const updatedBanner = await Promotional_Banner_model.findByIdAndUpdate(bannerId, {
+      $set: {
+        banner_title: data.banner_title,
+        banner_image: imageUrl,
+      }
+    }, { new: true });
+
+    if (!updatedBanner) {
+      throw new Error('Banner not found for update');
+    }
+
+    return updatedBanner;
   },
 
 };

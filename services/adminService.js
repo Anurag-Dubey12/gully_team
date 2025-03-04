@@ -22,7 +22,7 @@ const adminService = {
     }
 
     // Clear existing tokens
-    admin.tokens = [];
+    admin.token = [];
     admin.expiredTokens = [];
 
     // Generate a new token
@@ -36,7 +36,7 @@ const adminService = {
     );
 
     const expiresIn = new Date(Date.now() + 3600000); // Token expiration in milliseconds (1 hour)
-    admin.tokens.push({ token, expiresAt: expiresIn });
+    admin.token.push({ token, expiresAt: expiresIn });
     await admin.save();
 
     const adminData = {

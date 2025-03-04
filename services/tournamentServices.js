@@ -8,9 +8,10 @@ import {
   Tournament,
   User,
   EliminatedTeam,
-  Package
+  Package,
+  OrderHistory
 } from "../models/index.js";
-
+import nodemailer from "nodemailer";
 import ImageUploader from "../helpers/ImageUploader.js";
 import firebaseNotification from "../helpers/firebaseNotification.js";
 
@@ -108,188 +109,444 @@ const tournamentServices = {
 
   async setSponsor(data) {
     const userInfo = global.user;
-    const useremail=userInfo.email
     const { tournamentId, SponsorshipPackageId } = data;
   
     try {
-      const tour = await Tournament.findById(tournamentId); 
+      const tour = await Tournament.findById(tournamentId);
   
       if (!tour) {
         throw new Error("Tournament not found");
       }
-
+  
       tour.isSponsorshippurchase = true;
       tour.SponsorshipPackageId = SponsorshipPackageId;
-      
-      const purchasedpackage=await Package.findById(SponsorshipPackageId);
-    
+      const purchasedPackage = await Package.findById(SponsorshipPackageId);
+      const user = await User.findById(userInfo.userId);
+     
+  
       await tour.save();
-      await sendSponsorshipEmail(tour);
 
+      setTimeout(async () => {
+        console.log("Sending email after 10 seconds...");
+        const order = await OrderHistory.findOne({ tournamentId: tournamentId }); 
+        console.log(order);
+        const mail = await tournamentServices.sendMail("sponsorship", user, tour, order.orderId, purchasedPackage);
+        console.log(mail);
+      }, 10000);
+  
       return tour;
     } catch (err) {
       console.log("Error updating sponsorship:", err);
-      throw err; 
+      throw err;
     }
   },  
 
+  async sendMail(userFor = "", user, tour,orderId, purchasedPackage) {
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      requireTLS: true,
+      auth: {
+        user: "ad210689@gmail.com",
+        pass: "aocw cfjf jgwe rcpd",
+      },
+    });
+
+    let mailOptions;
+     mailOptions = {
+        from: "ad210689@gmail.com",
+        to: user.email,
+        subject: "Sponsorship Invoice",
+        html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        .invoice-container {
+            width: 100%;
+            margin: 0;
+            background-color: #fff;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        }
+        .invoice-header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px 40px;
+            text-align: center;
+        }
+        .invoice-title {
+            font-size: 28px;
+            font-weight: bold;
+            margin: 0;
+        }
+        .order-id {
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        .invoice-body {
+            padding: 30px 5px;
+        }
+        .company-customer {
+            margin-bottom: 30px;
+            width: 100%;
+        }
+        .company-info, .customer-info {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .section-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 5px;
+        }
+        .info-content {
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .tournament-info {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+            border-left: 4px solid #2c3e50;
+        }
+        .tournament-name {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .item-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        .item-table th, .item-table td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        .item-table th {
+            background-color: #2c3e50;
+            color: white;
+            text-transform: uppercase;
+            font-size: 14px;
+        }
+        .item-table td {
+            font-size: 14px;
+        }
+        .total-section {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+        }
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+        }
+        .total-row.final {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+            border-top: 2px solid #ddd;
+            padding-top: 15px;
+            margin-top: 10px;
+        }
+        .invoice-footer {
+            background-color: #f8f9fa;
+            padding: 20px 40px;
+            font-size: 14px;
+            color: #666;
+            border-top: 1px solid #eee;
+        }
+        .thank-you {
+            text-align: center;
+            margin-top: 20px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .contact-info {
+            text-align: center;
+            margin-top: 10px;
+        }
+        .contact-info a {
+            color: #2c3e50;
+            text-decoration: none;
+        }
+        .contact-info a:hover {
+            text-decoration: underline;
+        }
+        @media print {
+            body {
+                background-color: #fff;
+                padding: 0;
+            }
+            .invoice-container {
+                box-shadow: none;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="invoice-container">
+        <div class="invoice-header">
+            <h1 class="invoice-title">INVOICE</h1>
+            <p class="order-id">Transaction ID: ${orderId}</p> <!-- Display Transaction ID -->
+        </div>
+        <div class="invoice-body">
+            <div class="company-customer">
+                <!-- Customer Info Section -->
+                <div class="customer-info">
+                    <div class="section-title">Bill To</div>
+                    <div class="info-content">
+                        <strong>Name: ${user.fullName || 'Customer Name'}</strong><br>
+                        Phone: ${user.phoneNumber || 'Unknown Phone'}<br>
+                        Email: ${user.email || 'Unknown Email'}
+                    </div>
+                </div>
+            </div>
+
+            <div class="tournament-info">
+                <div class="tournament-name">Sponsorship for Tournament:</div>
+                <div>${tour.tournamentName}</div>
+            </div>
+
+            <div class="section-title">Invoice Items</div>
+            
+            <!-- Invoice Items in Table -->
+            <table class="item-table">
+                <thead>
+                    <tr>
+                        <th>Description</th>
+                        <th>Base Amount</th>
+                        <th>GST (18%)</th>
+                        <th>Total Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>${purchasedPackage.name}</td>
+                        <td>₹${(purchasedPackage.price * 0.82).toFixed(2)}</td>
+                        <td>₹${(purchasedPackage.price * 0.18).toFixed(2)}</td>
+                        <td>₹${purchasedPackage.price.toFixed(2)}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="total-section">
+                <div class="total-row final">
+                    <div>Total:</div>
+                    <div>₹${purchasedPackage.price.toFixed(2)}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="invoice-footer">
+            <!-- Company Info Section -->
+            <div class="company-info">
+                <div class="section-title">From</div>
+                <div class="info-content">
+                    <strong>Nilee Games and Future Technologies Pvt. Ltd</strong><br>
+                    508, 5th, Fly Edge, Building, Swami Vivekananda Rd,<br>
+                    Meghdoot, Hari Om Nagar, Borivali West,<br>
+                    Mumbai, Maharashtra 400092<br>
+                    Email: gullyteam33@gmail.com<br>
+                </div>
+            </div>
+
+            <div class="thank-you">Thank you for your business!</div>
+            <div class="contact-info">
+                For any queries, please contact us at <a href="mailto:gullyteam33@gmail.com">gullyteam33@gmail.com</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+`,
+      };
+
+    transporter.sendMail(mailOptions, function (error, info) {
+      if (error) {
+        console.log(error);
+      } else {
+        console.log("Mail sent: " + info.response);
+        return true;
+      }
+    });
+  },
   //Code to send Email to user after purchasing sponsorship package
-//   async setSponsor(data) {
-    
-//     const { tournamentId, SponsorshipPackageId } = data;
-  
-//     try {
-//       const tour = await Tournament.findById(tournamentId); 
-  
-//       if (!tour) {
-//         throw new Error("Tournament not found");
-//       }
+  //   async setSponsor(data) {
 
-//       tour.isSponsorshippurchase = true;
-//       tour.SponsorshipPackageId = SponsorshipPackageId;
-      
-//       const purchasedPackage=await Package.findById(SponsorshipPackageId);
-    
-//       await tour.save();
-//       const htmlContent = `
-//       <!DOCTYPE html>
-//       <html lang="en">
-//       <head>
-//           <meta charset="UTF-8">
-//           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-//           <title>Invoice</title>
-//           <style>
-//               body {
-//                   font-family: Arial, sans-serif;
-//                   margin: 0;
-//                   padding: 0;
-//                   background-color: #f9f9f9;
-//               }
-//               .container {
-//                   max-width: 800px;
-//                   margin: 20px auto;
-//                   background-color: #fff;
-//                   padding: 20px;
-//                   border-radius: 8px;
-//                   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-//               }
-//               .header, .footer {
-//                   text-align: center;
-//               }
-//               .header h1 {
-//                   margin: 0;
-//                   color: #333;
-//               }
-//               .company-info, .customer-info {
-//                   display: flex;
-//                   justify-content: space-between;
-//                   margin-bottom: 20px;
-//               }
-//               .company-info div, .customer-info div {
-//                   width: 48%;
-//               }
-//               .table {
-//                   width: 100%;
-//                   margin-bottom: 20px;
-//                   border-collapse: collapse;
-//               }
-//               .table th, .table td {
-//                   padding: 12px;
-//                   border: 1px solid #ddd;
-//                   text-align: left;
-//               }
-//               .table th {
-//                   background-color: #f2f2f2;
-//               }
-//               .total {
-//                   text-align: right;
-//                   font-weight: bold;
-//                   font-size: 18px;
-//               }
-//               .footer p {
-//                   font-size: 14px;
-//                   color: #777;
-//               }
-//           </style>
-//       </head>
-//       <body>
-//           <div class="container">
-//               <div class="header">
-//                   <h1>Invoice</h1>
-//               </div>
-//               <div class="company-info">
-//                   <div>
-//                       <strong>Company Name</strong><br>
-//                       Address: 123 Business St., City, Country<br>
-//                       Phone: (123) 456-7890<br>
-//                       Email: info@company.com
-//                   </div>
-//                   <div>
-//                       <strong>Invoice #</strong>: ${tour._id}<br>
-//                       <strong>Invoice Date</strong>: ${new Date().toLocaleDateString()}<br>
-//                       <strong>Due Date</strong>: ${new Date(new Date().setDate(new Date().getDate() + 7)).toLocaleDateString()}
-//                   </div>
-//               </div>
-//               <div class="customer-info">
-//                   <div>
-//                       <strong>Bill To:</strong><br>
-//                       ${tour.user.fullName || 'Customer Name'}<br>
-//                       Address: ${tour.user.address || 'Unknown Address'}<br>
-//                       Phone: ${tour.user.phoneNumber || 'Unknown Phone'}<br>
-//                       Email: ${tour.user.email || 'Unknown Email'}
-//                   </div>
-//               </div>
-//               <table class="table">
-//                   <thead>
-//                       <tr>
-//                           <th>Item Description</th>
-//                           <th>Unit Price</th>
-//                           <th>Quantity</th>
-//                           <th>Total</th>
-//                       </tr>
-//                   </thead>
-//                   <tbody>
-//                       <tr>
-//                           <td>${purchasedPackage.name}</td>
-//                           <td>$${purchasedPackage.price}</td>
-//                           <td>1</td>
-//                           <td>$${purchasedPackage.price}</td>
-//                       </tr>
-//                   </tbody>
-//               </table>
-//               <div class="total">
-//                   <p>Total: $${purchasedPackage.price}</p>
-//               </div>
-//               <div class="footer">
-//                   <p>Thank you for your business!</p>
-//               </div>
-//           </div>
-//       </body>
-//       </html>`;
+  //     const { tournamentId, SponsorshipPackageId } = data;
 
-//     // Create a transporter
-//     const transporter = nodemailer.createTransport({
-//       service: 'gmail',
-//       auth: {
-//         user: 'nuzen2025@gmail.com',
-//         pass: 'Anurag3007'
-//       }
-//     });
+  //     try {
+  //       const tour = await Tournament.findById(tournamentId); 
 
-//     // Send email
-//     await transporter.sendMail({
-//       from: 'nuzen2025@gmail.com',
-//       to: tour.user.email,
-//       subject: 'Sponsorship Invoice',
-//       html: htmlContent
-//     });
+  //       if (!tour) {
+  //         throw new Error("Tournament not found");
+  //       }
 
-//     return tour;
-//   } catch (err) {
-//     console.log("Error updating sponsorship:", err);
-//     throw err;
-//   }
-// },
+  //       tour.isSponsorshippurchase = true;
+  //       tour.SponsorshipPackageId = SponsorshipPackageId;
+
+  //       const purchasedPackage=await Package.findById(SponsorshipPackageId);
+
+  //       await tour.save();
+  //       const htmlContent = `
+  //       <!DOCTYPE html>
+  //       <html lang="en">
+  //       <head>
+  //           <meta charset="UTF-8">
+  //           <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  //           <title>Invoice</title>
+  //           <style>
+  //               body {
+  //                   font-family: Arial, sans-serif;
+  //                   margin: 0;
+  //                   padding: 0;
+  //                   background-color: #f9f9f9;
+  //               }
+  //               .container {
+  //                   max-width: 800px;
+  //                   margin: 20px auto;
+  //                   background-color: #fff;
+  //                   padding: 20px;
+  //                   border-radius: 8px;
+  //                   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  //               }
+  //               .header, .footer {
+  //                   text-align: center;
+  //               }
+  //               .header h1 {
+  //                   margin: 0;
+  //                   color: #333;
+  //               }
+  //               .company-info, .customer-info {
+  //                   display: flex;
+  //                   justify-content: space-between;
+  //                   margin-bottom: 20px;
+  //               }
+  //               .company-info div, .customer-info div {
+  //                   width: 48%;
+  //               }
+  //               .table {
+  //                   width: 100%;
+  //                   margin-bottom: 20px;
+  //                   border-collapse: collapse;
+  //               }
+  //               .table th, .table td {
+  //                   padding: 12px;
+  //                   border: 1px solid #ddd;
+  //                   text-align: left;
+  //               }
+  //               .table th {
+  //                   background-color: #f2f2f2;
+  //               }
+  //               .total {
+  //                   text-align: right;
+  //                   font-weight: bold;
+  //                   font-size: 18px;
+  //               }
+  //               .footer p {
+  //                   font-size: 14px;
+  //                   color: #777;
+  //               }
+  //           </style>
+  //       </head>
+  //       <body>
+  //           <div class="container">
+  //               <div class="header">
+  //                   <h1>Invoice</h1>
+  //               </div>
+  //               <div class="company-info">
+  //                   <div>
+  //                       <strong>Company Name</strong><br>
+  //                       Address: 123 Business St., City, Country<br>
+  //                       Phone: (123) 456-7890<br>
+  //                       Email: info@company.com
+  //                   </div>
+  //                   <div>
+  //                       <strong>Invoice #</strong>: ${tour._id}<br>
+  //                       <strong>Invoice Date</strong>: ${new Date().toLocaleDateString()}<br>
+  //                       <strong>Due Date</strong>: ${new Date(new Date().setDate(new Date().getDate() + 7)).toLocaleDateString()}
+  //                   </div>
+  //               </div>
+  //               <div class="customer-info">
+  //                   <div>
+  //                       <strong>Bill To:</strong><br>
+  //                       ${tour.user.fullName || 'Customer Name'}<br>
+  //                       Address: ${tour.user.address || 'Unknown Address'}<br>
+  //                       Phone: ${tour.user.phoneNumber || 'Unknown Phone'}<br>
+  //                       Email: ${tour.user.email || 'Unknown Email'}
+  //                   </div>
+  //               </div>
+  //               <table class="table">
+  //                   <thead>
+  //                       <tr>
+  //                           <th>Item Description</th>
+  //                           <th>Unit Price</th>
+  //                           <th>Quantity</th>
+  //                           <th>Total</th>
+  //                       </tr>
+  //                   </thead>
+  //                   <tbody>
+  //                       <tr>
+  //                           <td>${purchasedPackage.name}</td>
+  //                           <td>$${purchasedPackage.price}</td>
+  //                           <td>1</td>
+  //                           <td>$${purchasedPackage.price}</td>
+  //                       </tr>
+  //                   </tbody>
+  //               </table>
+  //               <div class="total">
+  //                   <p>Total: $${purchasedPackage.price}</p>
+  //               </div>
+  //               <div class="footer">
+  //                   <p>Thank you for your business!</p>
+  //               </div>
+  //           </div>
+  //       </body>
+  //       </html>`;
+
+  //     // Create a transporter
+  //     const transporter = nodemailer.createTransport({
+  //       service: 'gmail',
+  //       auth: {
+  //         user: 'nuzen2025@gmail.com',
+  //         pass: 'Anurag3007'
+  //       }
+  //     });
+
+  //     // Send email
+  //     await transporter.sendMail({
+  //       from: 'nuzen2025@gmail.com',
+  //       to: tour.user.email,
+  //       subject: 'Sponsorship Invoice',
+  //       html: htmlContent
+  //     });
+
+  //     return tour;
+  //   } catch (err) {
+  //     console.log("Error updating sponsorship:", err);
+  //     throw err;
+  //   }
+  // },
 
 
 
@@ -383,265 +640,265 @@ const tournamentServices = {
   //   return { newTournament, fcmToken };
   // },
 
-// const tournamentServices = {
-//   async createTournament(data, userStartDate, userEndDate) {
-//     const userInfo = global.user;
+  // const tournamentServices = {
+  //   async createTournament(data, userStartDate, userEndDate) {
+  //     const userInfo = global.user;
 
-//     //code for coHost.
+  //     //code for coHost.
 
-//     let coHostId1;
-//     let coHostId2;
+  //     let coHostId1;
+  //     let coHostId2;
 
-//     if (data.coHost1Phone) {
-//       const existingUser = await User.exists({
-//         phoneNumber: data.coHost1Phone,
-//       });
+  //     if (data.coHost1Phone) {
+  //       const existingUser = await User.exists({
+  //         phoneNumber: data.coHost1Phone,
+  //       });
 
-//       if (existingUser) {
-//         coHostId1 = existingUser._id;
-//       } else {
-//         const newUser = new User({
-//           fullName: data.coHost1Name || "",
-//           phoneNumber: data.coHost1Phone,
-//           registrationDate: new Date(),
-//         });
+  //       if (existingUser) {
+  //         coHostId1 = existingUser._id;
+  //       } else {
+  //         const newUser = new User({
+  //           fullName: data.coHost1Name || "",
+  //           phoneNumber: data.coHost1Phone,
+  //           registrationDate: new Date(),
+  //         });
 
-//         const newUserData = await newUser.save();
-//         coHostId1 = newUserData._id;
-//       }
-//     }
+  //         const newUserData = await newUser.save();
+  //         coHostId1 = newUserData._id;
+  //       }
+  //     }
 
-//     if (data.coHost2Phone) {
-//       const existingUser = await User.exists({
-//         phoneNumber: data.coHost2Phone,
-//       });
+  //     if (data.coHost2Phone) {
+  //       const existingUser = await User.exists({
+  //         phoneNumber: data.coHost2Phone,
+  //       });
 
-//       if (existingUser) {
-//         coHostId2 = existingUser._id;
-//       } else {
-//         const newUser = new User({
-//           fullName: data.coHost2Name || "",
-//           phoneNumber: data.coHost2Phone,
-//           registrationDate: new Date(),
-//         });
+  //       if (existingUser) {
+  //         coHostId2 = existingUser._id;
+  //       } else {
+  //         const newUser = new User({
+  //           fullName: data.coHost2Name || "",
+  //           phoneNumber: data.coHost2Phone,
+  //           registrationDate: new Date(),
+  //         });
 
-//         const newUserData = await newUser.save();
-//         coHostId2 = newUserData._id;
-//       }
-//     }
+  //         const newUserData = await newUser.save();
+  //         coHostId2 = newUserData._id;
+  //       }
+  //     }
 
-//     let imagePath = "";
-//     if (data.coverPhoto) {
-//       imagePath = await ImageUploader.Upload(data.coverPhoto, "tournament");
-//     }
+  //     let imagePath = "";
+  //     if (data.coverPhoto) {
+  //       imagePath = await ImageUploader.Upload(data.coverPhoto, "tournament");
+  //     }
 
-//     // tournament object
-//     const tournament = new Tournament({
-//       tournamentStartDateTime: userStartDate,
-//       tournamentEndDateTime: userEndDate,
-//       tournamentName: data.tournamentName,
-//       tournamentCategory: { name: data.tournamentCategory },
-//       ballType: { name: data.ballType },
-//       pitchType: { name: data.pitchType },
-//       email: userInfo.email,
-//       matchType: { name: data.matchType },
-//       tournamentPrize: { name: data.tournamentPrize },
-//       rules: data.rules,
-//       disclaimer: data.disclaimer,
-//       fees: data.fees,
-//       ballCharges: data.ballCharges,
-//       breakfastCharges: data.breakfastCharges,
-//       stadiumAddress: data.stadiumAddress,
-//       tournamentLimit: data.tournamentLimit,
-//       gameType: { name: data.gameType },
-//       coverPhoto: imagePath,
-//       locationHistory: {
-//         // type: "Point",
+  //     // tournament object
+  //     const tournament = new Tournament({
+  //       tournamentStartDateTime: userStartDate,
+  //       tournamentEndDateTime: userEndDate,
+  //       tournamentName: data.tournamentName,
+  //       tournamentCategory: { name: data.tournamentCategory },
+  //       ballType: { name: data.ballType },
+  //       pitchType: { name: data.pitchType },
+  //       email: userInfo.email,
+  //       matchType: { name: data.matchType },
+  //       tournamentPrize: { name: data.tournamentPrize },
+  //       rules: data.rules,
+  //       disclaimer: data.disclaimer,
+  //       fees: data.fees,
+  //       ballCharges: data.ballCharges,
+  //       breakfastCharges: data.breakfastCharges,
+  //       stadiumAddress: data.stadiumAddress,
+  //       tournamentLimit: data.tournamentLimit,
+  //       gameType: { name: data.gameType },
+  //       coverPhoto: imagePath,
+  //       locationHistory: {
+  //         // type: "Point",
 
-//         point: {
-//           coordinates: [parseFloat(data.longitude), parseFloat(data.latitude)],
-//         },
-//         selectLocation: data.selectLocation,
-//       },
-//       user: userInfo.userId,
-//       coHostId1: coHostId1,
-//       coHostId2: coHostId2,
-//       authority: userInfo.userId,
-//     });
+  //         point: {
+  //           coordinates: [parseFloat(data.longitude), parseFloat(data.latitude)],
+  //         },
+  //         selectLocation: data.selectLocation,
+  //       },
+  //       user: userInfo.userId,
+  //       coHostId1: coHostId1,
+  //       coHostId2: coHostId2,
+  //       authority: userInfo.userId,
+  //     });
 
-//     // Create a new instance of the HelpdeskTicket model
-//     const newTournament = new Tournament(tournament);
+  //     // Create a new instance of the HelpdeskTicket model
+  //     const newTournament = new Tournament(tournament);
 
-//     // Save the new HelpdeskTicket and wait for the operation to complete
-//     await newTournament.save();
-//     newTournament.populate("user");
+  //     // Save the new HelpdeskTicket and wait for the operation to complete
+  //     await newTournament.save();
+  //     newTournament.populate("user");
 
-//     const user = await User.findById(userInfo.userId);
-//     // Update the User as Organizer ;
-//     user.isOrganizer = true;
+  //     const user = await User.findById(userInfo.userId);
+  //     // Update the User as Organizer ;
+  //     user.isOrganizer = true;
 
-//     // Retrieve FCM token this is for notification
-//     const fcmToken = user.fcmToken;
+  //     // Retrieve FCM token this is for notification
+  //     const fcmToken = user.fcmToken;
 
-//     // Save the updated user document
-//     await user.save();
-//     //this is for notification
-//     return { newTournament, fcmToken };
-//   },
+  //     // Save the updated user document
+  //     await user.save();
+  //     //this is for notification
+  //     return { newTournament, fcmToken };
+  //   },
 
 
-async editTournament(data, userStartDate, userEndDate, tournamentId) {
-  const userInfo = global.user;
+  async editTournament(data, userStartDate, userEndDate, tournamentId) {
+    const userInfo = global.user;
 
-  // Find the existing tournament by ID
-  // const tournament = await Tournament.findById(tournamentId);
-  let tournamentImage = await Tournament.findOne({ tournamentId });
-  if (!tournamentId) {
-    throw CustomErrorHandler.notFound("Tournament not found.");
-  }
-
-  // let imagePath;
-  // if (data.coverPhoto) {
-  //   // Handle image upload
-  //   imagePath = await ImageUploader.Upload(data.coverPhoto, "tournament", tournament.coverPhoto);
-  // } else {
-  //   imagePath = tournament.coverPhoto; // Retain the existing cover photo if none provided
-  // }
-
-  let imagePath;
-  if (data.coverPhoto) {
-    imagePath = await ImageUploader.Upload(
-      data.coverPhoto,
-      "tournament",
-      tournamentImage.coverPhoto,
-    );
-  } else {
-    imagePath = tournamentImage.coverPhoto;
-  }
-  // let coHostId1 = tournament.coHostId1;
-  // let coHostId2 = tournament.coHostId2;
-
-  let coHostId1 = tournamentId.coHostId1;
-  let coHostId2 = tournamentId.coHostId2;
-
-  // Handle coHost1 update or creation
-  if (data.coHost1Phone) {
-    const existingUser = await User.findOne({ phoneNumber: data.coHost1Phone });
-    if (existingUser) {
-      coHostId1 = existingUser._id;
-    } else {
-      const newUser = new User({
-        fullName: data.coHost1Name || "",
-        phoneNumber: data.coHost1Phone,
-        registrationDate: new Date(),
-      });
-      const newUserData = await newUser.save();
-      coHostId1 = newUserData._id;
+    // Find the existing tournament by ID
+    // const tournament = await Tournament.findById(tournamentId);
+    let tournamentImage = await Tournament.findOne({ tournamentId });
+    if (!tournamentId) {
+      throw CustomErrorHandler.notFound("Tournament not found.");
     }
-  }
 
-  // Handle coHost2 update or creation
-  if (data.coHost2Phone) {
-    const existingUser = await User.findOne({ phoneNumber: data.coHost2Phone });
-    if (existingUser) {
-      coHostId2 = existingUser._id;
+    // let imagePath;
+    // if (data.coverPhoto) {
+    //   // Handle image upload
+    //   imagePath = await ImageUploader.Upload(data.coverPhoto, "tournament", tournament.coverPhoto);
+    // } else {
+    //   imagePath = tournament.coverPhoto; // Retain the existing cover photo if none provided
+    // }
+
+    let imagePath;
+    if (data.coverPhoto) {
+      imagePath = await ImageUploader.Upload(
+        data.coverPhoto,
+        "tournament",
+        tournamentImage.coverPhoto,
+      );
     } else {
-      const newUser = new User({
-        fullName: data.coHost2Name || "",
-        phoneNumber: data.coHost2Phone,
-        registrationDate: new Date(),
-      });
-      const newUserData = await newUser.save();
-      coHostId2 = newUserData._id;
+      imagePath = tournamentImage.coverPhoto;
     }
-  }
+    // let coHostId1 = tournament.coHostId1;
+    // let coHostId2 = tournament.coHostId2;
 
-  // Prepare updated data
-  const updatedData = {
-    tournamentStartDateTime: userStartDate,
-    tournamentEndDateTime: userEndDate,
-    tournamentName: data.tournamentName,
-    tournamentCategory: { name: data.tournamentCategory },
-    ballType: { name: data.ballType },
-    pitchType: { name: data.pitchType },
-    email: userInfo.email,
-    matchType: { name: data.matchType },
-    tournamentPrize: { name: data.tournamentPrize },
-    rules: data.rules,
-    disclaimer: data.disclaimer,
-    fees: data.fees,
-    ballCharges: data.ballCharges,
-    breakfastCharges: data.breakfastCharges,
-    stadiumAddress: data.stadiumAddress,
-    tournamentLimit: data.tournamentLimit,
-    gameType: { name: data.gameType },
-    coverPhoto: imagePath,
-    locationHistory: {
-      point: {
-        type: "Point",
-        coordinates: [parseFloat(data.longitude), parseFloat(data.latitude)],
+    let coHostId1 = tournamentId.coHostId1;
+    let coHostId2 = tournamentId.coHostId2;
+
+    // Handle coHost1 update or creation
+    if (data.coHost1Phone) {
+      const existingUser = await User.findOne({ phoneNumber: data.coHost1Phone });
+      if (existingUser) {
+        coHostId1 = existingUser._id;
+      } else {
+        const newUser = new User({
+          fullName: data.coHost1Name || "",
+          phoneNumber: data.coHost1Phone,
+          registrationDate: new Date(),
+        });
+        const newUserData = await newUser.save();
+        coHostId1 = newUserData._id;
+      }
+    }
+
+    // Handle coHost2 update or creation
+    if (data.coHost2Phone) {
+      const existingUser = await User.findOne({ phoneNumber: data.coHost2Phone });
+      if (existingUser) {
+        coHostId2 = existingUser._id;
+      } else {
+        const newUser = new User({
+          fullName: data.coHost2Name || "",
+          phoneNumber: data.coHost2Phone,
+          registrationDate: new Date(),
+        });
+        const newUserData = await newUser.save();
+        coHostId2 = newUserData._id;
+      }
+    }
+
+    // Prepare updated data
+    const updatedData = {
+      tournamentStartDateTime: userStartDate,
+      tournamentEndDateTime: userEndDate,
+      tournamentName: data.tournamentName,
+      tournamentCategory: { name: data.tournamentCategory },
+      ballType: { name: data.ballType },
+      pitchType: { name: data.pitchType },
+      email: userInfo.email,
+      matchType: { name: data.matchType },
+      tournamentPrize: { name: data.tournamentPrize },
+      rules: data.rules,
+      disclaimer: data.disclaimer,
+      fees: data.fees,
+      ballCharges: data.ballCharges,
+      breakfastCharges: data.breakfastCharges,
+      stadiumAddress: data.stadiumAddress,
+      tournamentLimit: data.tournamentLimit,
+      gameType: { name: data.gameType },
+      coverPhoto: imagePath,
+      locationHistory: {
+        point: {
+          type: "Point",
+          coordinates: [parseFloat(data.longitude), parseFloat(data.latitude)],
+        },
+        selectLocation: data.selectLocation,
       },
-      selectLocation: data.selectLocation,
-    },
-    // eliminatedTeamIds: data.eliminatedTeamIds || [], // Added eliminatedTeamIds field
-    user: userInfo.userId,
-    coHostId1: coHostId1,
-    coHostId2: coHostId2,
-    isSponsorshippurchase:false
-  };
+      // eliminatedTeamIds: data.eliminatedTeamIds || [], // Added eliminatedTeamIds field
+      user: userInfo.userId,
+      coHostId1: coHostId1,
+      coHostId2: coHostId2,
+      isSponsorshippurchase: false
+    };
 
-  // Update tournament data in the database
-  const updatedTournament = await Tournament.findByIdAndUpdate(tournamentId, updatedData, {
-    new: true,
-  });
+    // Update tournament data in the database
+    const updatedTournament = await Tournament.findByIdAndUpdate(tournamentId, updatedData, {
+      new: true,
+    });
 
-  if (!updatedTournament) {
-    throw CustomErrorHandler.notFound("Tournament not found.");
-  }
-
-  // Send notifications to registered teams about the update
-  const notificationData = {
-    title: "Gully Team",
-    body: `${updatedTournament.tournamentName} Tournament has been updated! Check the changes in the app.`,
-    image: "",
-  };
-
-  const registeredTeams = await RegisteredTeam.find({
-    tournament: tournamentId,
-    status: "Accepted",
-  });
-
-  const notificationPromises = registeredTeams.map((team) => {
-    if (team.user?.fcmToken) {
-      return firebaseNotification.sendNotification(team.user.fcmToken, notificationData);
+    if (!updatedTournament) {
+      throw CustomErrorHandler.notFound("Tournament not found.");
     }
-  });
 
-  try {
-    await Promise.all(notificationPromises);
-    console.log("Notifications sent successfully.");
-  } catch (error) {
-    console.error("Error sending notifications:", error);
-  }
+    // Send notifications to registered teams about the update
+    const notificationData = {
+      title: "Gully Team",
+      body: `${updatedTournament.tournamentName} Tournament has been updated! Check the changes in the app.`,
+      image: "",
+    };
 
-  return updatedTournament;
-},
+    const registeredTeams = await RegisteredTeam.find({
+      tournament: tournamentId,
+      status: "Accepted",
+    });
+
+    const notificationPromises = registeredTeams.map((team) => {
+      if (team.user?.fcmToken) {
+        return firebaseNotification.sendNotification(team.user.fcmToken, notificationData);
+      }
+    });
+
+    try {
+      await Promise.all(notificationPromises);
+      console.log("Notifications sent successfully.");
+    } catch (error) {
+      console.error("Error sending notifications:", error);
+    }
+
+    return updatedTournament;
+  },
 
   // async editTournament(data, userStartDate, userEndDate, TournamentId) {
   //   const userInfo = global.user;
 
-    // let tournamentImage = await Tournament.findOne({ TournamentId });
+  // let tournamentImage = await Tournament.findOne({ TournamentId });
 
-    // let imagePath;
-    // if (data.coverPhoto) {
-    //   imagePath = await ImageUploader.Upload(
-    //     data.coverPhoto,
-    //     "tournament",
-    //     tournamentImage.coverPhoto,
-    //   );
-    // } else {
-    //   imagePath = tournamentImage.coverPhoto;
-    // }
+  // let imagePath;
+  // if (data.coverPhoto) {
+  //   imagePath = await ImageUploader.Upload(
+  //     data.coverPhoto,
+  //     "tournament",
+  //     tournamentImage.coverPhoto,
+  //   );
+  // } else {
+  //   imagePath = tournamentImage.coverPhoto;
+  // }
 
   //   let coHostId1;
   //   let coHostId2;
@@ -1189,133 +1446,133 @@ async editTournament(data, userStartDate, userEndDate, tournamentId) {
 
     return tournament_data;
   },
- //to get current Tournament Created by organizer
- async getCurrentTournamentByOrganizer() {
-  let userInfo = global.user;
-  const currentDate = new Date();
+  //to get current Tournament Created by organizer
+  async getCurrentTournamentByOrganizer() {
+    let userInfo = global.user;
+    const currentDate = new Date();
 
-  let TournamentData = await Tournament.aggregate([
-    {
-      $match: {
-        $or: [
-          { user: new Types.ObjectId(userInfo.userId) },
-          { coHostId1: new Types.ObjectId(userInfo.userId) },
-          { coHostId2: new Types.ObjectId(userInfo.userId) }, // New condition for coHostId2
-        ],
-        isDeleted: false,
-        isCompleted: false,
-        isActive: true,
-        tournamentEndDateTime: { $gt: currentDate },
+    let TournamentData = await Tournament.aggregate([
+      {
+        $match: {
+          $or: [
+            { user: new Types.ObjectId(userInfo.userId) },
+            { coHostId1: new Types.ObjectId(userInfo.userId) },
+            { coHostId2: new Types.ObjectId(userInfo.userId) }, // New condition for coHostId2
+          ],
+          isDeleted: false,
+          isCompleted: false,
+          isActive: true,
+          tournamentEndDateTime: { $gt: currentDate },
+        },
       },
-    },
-    {
-      $lookup: {
-        from: "registeredteams",
-        foreignField: "tournament",
-        localField: "_id",
-        as: "registeredTeams",
+      {
+        $lookup: {
+          from: "registeredteams",
+          foreignField: "tournament",
+          localField: "_id",
+          as: "registeredTeams",
+        },
       },
-    },
-    {
-      $lookup: {
-        from: "users",
-        localField: "user",
-        foreignField: "_id",
-        as: "user",
-        pipeline: [
-          {
-            $project: {
-              _id: 1,
-              fullName: 1,
-              phoneNumber: 1,
+      {
+        $lookup: {
+          from: "users",
+          localField: "user",
+          foreignField: "_id",
+          as: "user",
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                fullName: 1,
+                phoneNumber: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "coHostId1",
+          foreignField: "_id",
+          as: "coHost1",
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                fullName: 1,
+                phoneNumber: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "coHostId2",
+          foreignField: "_id",
+          as: "coHost2",
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                fullName: 1,
+                phoneNumber: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $unwind: {
+          path: "$user",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $unwind: {
+          path: "$coHost1",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $unwind: {
+          path: "$coHost2",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $addFields: {
+          //It is Accepted Team Count
+          registeredTeamsCount: {
+            $size: {
+              $filter: {
+                input: "$registeredTeams",
+                as: "registeredTeam",
+                cond: { $eq: ["$$registeredTeam.status", "Accepted"] },
+              },
             },
           },
-        ],
-      },
-    },
-    {
-      $lookup: {
-        from: "users",
-        localField: "coHostId1",
-        foreignField: "_id",
-        as: "coHost1",
-        pipeline: [
-          {
-            $project: {
-              _id: 1,
-              fullName: 1,
-              phoneNumber: 1,
-            },
-          },
-        ],
-      },
-    },
-    {
-      $lookup: {
-        from: "users",
-        localField: "coHostId2",
-        foreignField: "_id",
-        as: "coHost2",
-        pipeline: [
-          {
-            $project: {
-              _id: 1,
-              fullName: 1,
-              phoneNumber: 1,
-            },
-          },
-        ],
-      },
-    },
-    {
-      $unwind: {
-        path: "$user",
-        preserveNullAndEmptyArrays: true,
-      },
-    },
-    {
-      $unwind: {
-        path: "$coHost1",
-        preserveNullAndEmptyArrays: true,
-      },
-    },
-    {
-      $unwind: {
-        path: "$coHost2",
-        preserveNullAndEmptyArrays: true,
-      },
-    },
-    {
-      $addFields: {
-        //It is Accepted Team Count
-        registeredTeamsCount: {
-          $size: {
-            $filter: {
-              input: "$registeredTeams",
-              as: "registeredTeam",
-              cond: { $eq: ["$$registeredTeam.status", "Accepted"] },
+          pendingTeamsCount: {
+            $size: {
+              $filter: {
+                input: "$registeredTeams",
+                as: "registeredTeam",
+                cond: { $eq: ["$$registeredTeam.status", "Pending"] },
+              },
             },
           },
         },
-        pendingTeamsCount: {
-          $size: {
-            $filter: {
-              input: "$registeredTeams",
-              as: "registeredTeam",
-              cond: { $eq: ["$$registeredTeam.status", "Pending"] },
-            },
-          },
-        },
       },
-    },
-  ]);
+    ]);
 
-  if (!TournamentData) {
-    // Handle the case where the user is not found
-    throw CustomErrorHandler.notFound("Team Not Found");
-  }
-  return TournamentData;
-},
+    if (!TournamentData) {
+      // Handle the case where the user is not found
+      throw CustomErrorHandler.notFound("Team Not Found");
+    }
+    return TournamentData;
+  },
   //to get all Tournament Created by organizer
   async getAllTournamentByOrganizer() {
     let userInfo = global.user;
@@ -1334,7 +1591,7 @@ async editTournament(data, userStartDate, userEndDate, tournamentId) {
       //     isDeleted: false
       //   }
       // },
-      
+
       {
         $match: {
           $or: [
@@ -1473,36 +1730,36 @@ async editTournament(data, userStartDate, userEndDate, tournamentId) {
     return tournamentdata;
   },
 
-  
+
   async createEntryForm(teamID, tournamentID) {
     const userInfo = global.user;
-  
+
     // Fetch the team details
     const team = await Team.findById(teamID);
-  
+
     if (team.players.length < 11) {
       throw CustomErrorHandler.badRequest("Team Member is Insufficient");
     }
-  
+
     // Create a new entry form
     const entryForm = new EntryForm({
       captainId: userInfo.userId,
       team: teamID,
     });
-  
+
     // Check if the team already exists in the tournament
     const teamExist = await RegisteredTeam.exists({
       team: teamID,
       tournament: tournamentID,
     });
-  
+
     if (teamExist) {
       const registeredTeam = await RegisteredTeam.findOne({
         tournament: tournamentID,
         team: teamID,
         status: "Denied",
       });
-  
+
       if (registeredTeam) {
         registeredTeam.status = "Pending";
         await registeredTeam.save();
@@ -1515,11 +1772,11 @@ async editTournament(data, userStartDate, userEndDate, tournamentId) {
         user: userInfo.userId,
         tournament: tournamentID,
       });
-  
+
       await registeredTeam.save();
       await entryForm.save();
     }
-  
+
     // Send notification to the tournament organizer
     const tournament = await Tournament.findById(tournamentID);
     const userId = tournament.user._id;
@@ -1535,9 +1792,9 @@ async editTournament(data, userStartDate, userEndDate, tournamentId) {
         title: "Gully Team",
         body: `${team.teamName} has sent you a join request for the ${tournament.tournamentName} tournament.`,
       };
-  
+
       console.log("Sending notification to organizer with token:", user.fcmToken);  // Log the FCM token
-  
+
       try {
         const response = await firebaseNotification.sendNotification(fcmToken, notificationData);
         console.log("Notification sent to the organizer successfully:", response);
@@ -1547,10 +1804,10 @@ async editTournament(data, userStartDate, userEndDate, tournamentId) {
     } else {
       console.error("No FCM token found for the organizer.");
     }
-  
+
     return entryForm;
   },
-  
+
 
   // async createEntryForm(teamID, tournamentID) {
   //   const userInfo = global.user;
@@ -1779,11 +2036,11 @@ async editTournament(data, userStartDate, userEndDate, tournamentId) {
     }
 
     // Match stage for isActive
-aggregationPipeline.push({
-  $match: {
-    isActive: true
-  }
-});
+    aggregationPipeline.push({
+      $match: {
+        isActive: true
+      }
+    });
     // Skip and Limit stages
     if (!search) {
       aggregationPipeline.push({ $skip: skip });
@@ -2134,130 +2391,129 @@ aggregationPipeline.push({
   },
 
   async getMatchesHistoryByTournamentId(TournamentId) {
-    
+
     const Match = await Match.find({
       tournament: TournamentId,
-      
+
     }).select("_id tournament status team1 team2");
 
-    
+
     return Match;
   },
 
 
-//DG-original
-// async eliminateTeams(tournamentId, eliminatedTeamIds) {
-//   // Fetch the tournament to ensure it exists
-//   const tournament = await Tournament.findById(tournamentId);
-//   if (!tournament) {
-//     throw new Error("Tournament not found.");
-//   }
+  //DG-original
+  // async eliminateTeams(tournamentId, eliminatedTeamIds) {
+  //   // Fetch the tournament to ensure it exists
+  //   const tournament = await Tournament.findById(tournamentId);
+  //   if (!tournament) {
+  //     throw new Error("Tournament not found.");
+  //   }
 
-//   for (const teamId of eliminatedTeamIds) {
-//     const registeredTeam = await RegisteredTeam.findOne({
-//       tournament: tournamentId,
-//       team: teamId,
-//     });
+  //   for (const teamId of eliminatedTeamIds) {
+  //     const registeredTeam = await RegisteredTeam.findOne({
+  //       tournament: tournamentId,
+  //       team: teamId,
+  //     });
 
-//     if (!registeredTeam) {
-//       throw new Error(`Team with ID ${teamId} not found in this tournament.`);
-//     }
+  //     if (!registeredTeam) {
+  //       throw new Error(`Team with ID ${teamId} not found in this tournament.`);
+  //     }
 
-//     const match = await Match.findOne({
-//       tournament: tournamentId,
-//       $or: [{ team1: teamId }, { team2: teamId }],
-//     }).select("Round");
+  //     const match = await Match.findOne({
+  //       tournament: tournamentId,
+  //       $or: [{ team1: teamId }, { team2: teamId }],
+  //     }).select("Round");
 
-//     if (!match) {
-//       throw new Error(`Match not found for team with ID ${teamId}.`);
-//     }
-//     // registeredTeam.isEliminated = true;
-//     registeredTeam.isEliminated==true? registeredTeam.isEliminated = false : registeredTeam.isEliminated = true;
-//     registeredTeam.eliminatedInRound = match.Round; 
-//     await registeredTeam.save();
-//   }
+  //     if (!match) {
+  //       throw new Error(`Match not found for team with ID ${teamId}.`);
+  //     }
+  //     // registeredTeam.isEliminated = true;
+  //     registeredTeam.isEliminated==true? registeredTeam.isEliminated = false : registeredTeam.isEliminated = true;
+  //     registeredTeam.eliminatedInRound = match.Round; 
+  //     await registeredTeam.save();
+  //   }
 
 
-//   const remainingTeams = await RegisteredTeam.find({
-//     tournament: tournamentId,
-//     isEliminated: false,
-//   }).populate({ path: "team", select: "teamName teamLogo" });
+  //   const remainingTeams = await RegisteredTeam.find({
+  //     tournament: tournamentId,
+  //     isEliminated: false,
+  //   }).populate({ path: "team", select: "teamName teamLogo" });
 
-//   return {
-//     remainingTeams: remainingTeams.map((team) => ({
-//       teamId: team.team._id,
-//       teamName: team.team.teamName,
-//       teamLogo: team.team.teamLogo,
-//     })),
-//   };
-// },
+  //   return {
+  //     remainingTeams: remainingTeams.map((team) => ({
+  //       teamId: team.team._id,
+  //       teamName: team.team.teamName,
+  //       teamLogo: team.team.teamLogo,
+  //     })),
+  //   };
+  // },
 
-//Team which haven't played any match still can be eliminated (updated:17 Jan 25)
-async eliminateTeams(tournamentId, eliminatedTeamIds) {
-  // Fetch the tournament to ensure it exists
-  const tournament = await Tournament.findById(tournamentId);
-  if (!tournament) {
-    throw new Error("Tournament not found.");
-  }
-
-  for (const teamId of eliminatedTeamIds) {
-    const registeredTeam = await RegisteredTeam.findOne({
-      tournament: tournamentId,
-      team: teamId,
-    });
-
-    if (!registeredTeam) {
-      throw new Error(`Team with ID ${teamId} not found in this tournament.`);
+  //Team which haven't played any match still can be eliminated (updated:17 Jan 25)
+  async eliminateTeams(tournamentId, eliminatedTeamIds) {
+    // Fetch the tournament to ensure it exists
+    const tournament = await Tournament.findById(tournamentId);
+    if (!tournament) {
+      throw new Error("Tournament not found.");
     }
 
-    // Try to find a match involving the team
-    const match = await Match.findOne({
+    for (const teamId of eliminatedTeamIds) {
+      const registeredTeam = await RegisteredTeam.findOne({
+        tournament: tournamentId,
+        team: teamId,
+      });
+
+      if (!registeredTeam) {
+        throw new Error(`Team with ID ${teamId} not found in this tournament.`);
+      }
+
+      // Try to find a match involving the team
+      const match = await Match.findOne({
+        tournament: tournamentId,
+        $or: [{ team1: teamId }, { team2: teamId }],
+      }).select("Round");
+
+      // Update elimination status and round
+      registeredTeam.isEliminated = !registeredTeam.isEliminated; // Toggle elimination status
+      registeredTeam.eliminatedInRound = match ? match.Round : null; // Set round if match exists, otherwise null
+      await registeredTeam.save();
+    }
+
+    // Fetch remaining teams that are not eliminated
+    const remainingTeams = await RegisteredTeam.find({
       tournament: tournamentId,
-      $or: [{ team1: teamId }, { team2: teamId }],
-    }).select("Round");
+      isEliminated: false,
+    }).populate({ path: "team", select: "teamName teamLogo" });
 
-    // Update elimination status and round
-    registeredTeam.isEliminated = !registeredTeam.isEliminated; // Toggle elimination status
-    registeredTeam.eliminatedInRound = match ? match.Round : null; // Set round if match exists, otherwise null
-    await registeredTeam.save();
-  }
-
-  // Fetch remaining teams that are not eliminated
-  const remainingTeams = await RegisteredTeam.find({
-    tournament: tournamentId,
-    isEliminated: false,
-  }).populate({ path: "team", select: "teamName teamLogo" });
-
-  return {
-    remainingTeams: remainingTeams.map((team) => ({
-      teamId: team.team._id,
-      teamName: team.team.teamName,
-      teamLogo: team.team.teamLogo,
-    })),
-  };
-},
+    return {
+      remainingTeams: remainingTeams.map((team) => ({
+        teamId: team.team._id,
+        teamName: team.team.teamName,
+        teamLogo: team.team.teamLogo,
+      })),
+    };
+  },
 
 
-//getEliminatedTeams api DG
-async getEliminatedTeams(tournamentId) {
-  const eliminatedTeams = await EliminatedTeam.find({ tournamentId })
-    .populate({ path: "teamId", select: "teamName" })
-    .populate({ path: "matchId", select: "eliminatedInRound" }); // Populate Round from Match schema
+  //getEliminatedTeams api DG
+  async getEliminatedTeams(tournamentId) {
+    const eliminatedTeams = await EliminatedTeam.find({ tournamentId })
+      .populate({ path: "teamId", select: "teamName" })
+      .populate({ path: "matchId", select: "eliminatedInRound" }); // Populate Round from Match schema
 
-  if (eliminatedTeams.length === 0) {
-    throw new Error("No eliminated teams found for this tournament.");
-  }
+    if (eliminatedTeams.length === 0) {
+      throw new Error("No eliminated teams found for this tournament.");
+    }
 
-  // Map the results to include team details and the round in which they were eliminated
-  return eliminatedTeams.map((eliminatedTeam) => ({
-    teamId: eliminatedTeam.teamId._id,
-    teamName: eliminatedTeam.teamId.teamName,
-    eliminatedInRound: eliminatedTeam.matchId ? eliminatedTeam.matchId.eliminatedInRound : null, // Round info from Match schema
-    eliminatedAt: eliminatedTeam.eliminatedAt,
-  }));
-},
+    // Map the results to include team details and the round in which they were eliminated
+    return eliminatedTeams.map((eliminatedTeam) => ({
+      teamId: eliminatedTeam.teamId._id,
+      teamName: eliminatedTeam.teamId.teamName,
+      eliminatedInRound: eliminatedTeam.matchId ? eliminatedTeam.matchId.eliminatedInRound : null, // Round info from Match schema
+      eliminatedAt: eliminatedTeam.eliminatedAt,
+    }));
+  },
 
 };
 
 export default tournamentServices;
-                                                                                                      

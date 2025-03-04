@@ -83,21 +83,7 @@ const otherController = {
       return next(err);
     }
   },
-
-  async createBannerOrder(req, res, next) {
-    try {
-      const result = await otherServices.createBannerOrder(req.body);
-
-      return res.status(200).json({
-        sucess: true,
-        message: "OrderID created SucessFully",
-        data: result,
-      });
-    } catch (err) {
-      console.log(" Error in createOrder ");
-      return next(err);
-    }
-  },
+  
  async createBannerOrder(req, res, next) {
     try {
       const result = await otherServices.createBannerOrder(req.body);

@@ -1,7 +1,7 @@
 import { Types } from "mongoose";
 import CustomErrorHandler from "../helpers/CustomErrorHandler.js";
 import {Sponsor} from "../models/index.js";
-
+import { adminService } from "../services/index.js";
 import ImageUploader from "../helpers/ImageUploader.js";
 import firebaseNotification from "../helpers/firebaseNotification.js";
 
@@ -26,12 +26,16 @@ const SponsorService = {
         });
         try {
             const sponsor = await sponsorData.save();
+            // const mail = await adminService.sendMail("Banner Adding",user.email,user.fullName,"We are working ");
+            // console.log(mail);
             return sponsor;
         } catch (err) {
             console.log("Error in adding Sponsor Details in service ", err)
         }
 
     },
+
+    
     async getSponsor(tournamentId) {
         try {
             const sponsor = await Sponsor.find({ tournamentId: Types.ObjectId(tournamentId),isActive:true });

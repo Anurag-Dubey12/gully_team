@@ -902,21 +902,22 @@ async deleteTransactionById(transactionId) {
     };
   
     const result = await RazorpayHandler.createOrder(paymentData);
+    const bannerId = mongoose.Types.ObjectId.isValid(data.bannerId) ? data.bannerId : null;
 
     console.log("Result ", result);
     const orderHistory = new OrderHistory({
       orderId: result.id,
       userId: userInfo.userId,
-      bannerId: data.bannerId, // New field for the banner order
+      bannerId:bannerId,
       amount: result.amount / 100,
       amountWithoutCoupon: data.amountWithoutCoupon ?? 0,
       coupon: data.coupon ?? "",
-      amountPaid: 0, // Initially 0
+      amountPaid: 0,
       amountDue: result.amount / 100,
       currency: result.currency,
       receipt: result.receipt,
-      status: data.status || "Pending", //
-      ordertype: "banner", // Set ordertype to 'banner'
+      status: data.status || "Pending",
+      ordertype: "banner", 
     });
   
     await orderHistory.save();
@@ -924,7 +925,7 @@ async deleteTransactionById(transactionId) {
     const payment = new Payment({
       orderId: result.id,
       userId: userInfo.userId,
-      bannerId: data.bannerId, 
+      bannerId: bannerId, 
       amountPaid: 0,
       paymentStatus: data.status || "Pending",
       paymentMode: data.paymentMode || "Card",
@@ -960,6 +961,7 @@ async deleteTransactionById(transactionId) {
       amount: result.amount / 100,
       amountWithoutCoupon: data.amountWithoutCoupon ?? 0,
       coupon: data.coupon ?? "",
+      tournamentId: data.tournamentId,
       amountPaid: 0, // Initially 0
       amountDue: result.amount / 100,
       currency: result.currency,
@@ -975,6 +977,7 @@ async deleteTransactionById(transactionId) {
       userId: userInfo.userId,
       sponsorPackageId: data.sponsorPackageId, 
       amountPaid: 0,
+      tournamentId: data.tournamentId,
       paymentStatus: data.status || "Pending",
       paymentMode: data.paymentMode || "Card",
       transactionId: result.id,
