@@ -37,9 +37,7 @@ const PromotionalbannerService = {
       console.log("Sending email after 10 seconds... with banner id", banner._id);
       const order = await OrderHistory.findOne({ bannerId: banner._id });
       const retrivedBanner = await Promotional_Banner_model.findById(banner._id);
-      console.log(retrivedBanner);
       const user = await User.findById(userInfo.userId);
-      console.log(order);
       const mail = await PromotionalbannerService.sendMail("Banner", user, retrivedBanner, order.orderId, purchasedPackage);
       console.log(mail);
     }, 10000);
@@ -53,13 +51,13 @@ const PromotionalbannerService = {
       secure: false,
       requireTLS: true,
       auth: {
-        user: "ad210689@gmail.com",
-        pass: "aocw cfjf jgwe rcpd",
+        user: "gullyteam33@gmail.com",
+        pass: "iaur qnaj ocsq jyvq",
       },
     });
 
     let mailOptions = {
-      from: "ad210689@gmail.com",
+      from: "gullyteam33@gmail.com",
       to: user.email,
       subject: "Invoice for Promotional Banner",
       html: `<!DOCTYPE html>
@@ -301,15 +299,12 @@ const PromotionalbannerService = {
     return myBanner;
   },
 
-  async getBannersWithinRadius(latitude, longitude, radiusKm = 25, desiredBannerCount = 5) {
-    // Convert the radius from kilometers to radians
+  async getBannersWithinRadius(latitude, longitude, radiusKm = 15, desiredBannerCount = 7) {
+    
     const radiusInRadians = radiusKm / 6371;
     const today = new Date();
-
-    console.log("latitude:", latitude);
-    console.log("longitude:", longitude);
     try {
-      // First, get promotional banners within radius
+
       const promotionalBanners = await Promotional_Banner_model.find({
         "locationHistory.point": {
           $geoWithin: {
@@ -320,15 +315,17 @@ const PromotionalbannerService = {
         endDate: { $gte: today }
       }, {
         locationHistory: 0
-      }).populate('packageId');
+      });
+      
       // If we have enough promotional banners, return them
-      if (promotionalBanners.length >= desiredBannerCount) {
-        return {
-          banners: promotionalBanners,
-          source: 'promotional'
-        };
-      }
+      // if (promotionalBanners.length >= desiredBannerCount) {
+      //   return {
+      //     banners: promotionalBanners,
+      //     bannerType: 'promotional'
+      //   };
+      // }
       const regularBannersNeeded = desiredBannerCount - promotionalBanners.length;
+      console.log("Regular banners needed:", regularBannersNeeded);
       const regularBanners = await Banner.find({
         isActive: true
       })
@@ -339,12 +336,13 @@ const PromotionalbannerService = {
       const combinedBanners = promotionalBanners.map(banner => ({
         ...banner.toObject(),
         bannerType: 'promotional'
-      })).concat(
-        regularBanners.map(banner => ({
+      }))
+      .concat(
+        regularBanners.slice(0, regularBannersNeeded).map(banner => ({
           ...banner.toObject(),
           bannerType: 'regular'
         }))
-      );
+      );      
 
       return {
         banners: combinedBanners,

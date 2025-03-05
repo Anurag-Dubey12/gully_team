@@ -1984,8 +1984,6 @@ async myPerformance(userId, category) {
   //   rules: 1, 
   // });
   const tournamentIds = userTournaments.map((tournament) => tournament._id);
-
-  console.log("User Tournament:", userPlayedTournament);
   const matches = await Match.find({
     tournament: { $in: tournamentIds }, 
     status: "played",
@@ -2264,7 +2262,7 @@ async myPerformance(userId, category) {
     const userPerformance = team1Players.concat(team2Players).find(player => player.phoneNumber === userPhoneNumber);
     if (userPerformance && userPerformance.bowling.wickets > (best.wickets || 0)) {
       return {
-        performance: `${userPerformance.bowling.wickets}-${userPerformance.bowling.runs}`,
+        performance: `${userPerformance.bowling.runs}-${userPerformance.bowling.wickets}`,
         team: match.team1._id === userPerformance.team ? match.team2.teamName : match.team1.teamName,
         _id:match._id,
       };
@@ -2272,7 +2270,7 @@ async myPerformance(userId, category) {
     return best;
   }, {});
 
-
+  
   const currentYear = new Date().getFullYear();
   const overallMatchRuns = matches.reduce((total, match) => {
     const team1Players = match.scoreBoard.team1.players;
@@ -2296,7 +2294,6 @@ async myPerformance(userId, category) {
     }
     return total;
   }, 0);
-
 
   return { aggregatedData, matches, bestBattingPerformance, bestBowlingPerformance, latestMatchesData,userPlayedTournament};
 

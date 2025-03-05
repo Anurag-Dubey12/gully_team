@@ -148,26 +148,26 @@ const tournamentServices = {
       secure: false,
       requireTLS: true,
       auth: {
-        user: "ad210689@gmail.com",
-        pass: "aocw cfjf jgwe rcpd",
+        user: "gullyteam33@gmail.com",
+        pass: "iaur qnaj ocsq jyvq",
       },
     });
 
     let mailOptions;
      mailOptions = {
-        from: "ad210689@gmail.com",
+        from: "gullyteam33@gmail.com",
         to: user.email,
         subject: "Sponsorship Invoice",
         html: `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Invoice</title>
-    <style>
+        <html lang="en">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Invoice</title>
+        <style>
         body {
-            font-family: 'Arial', sans-serif;
-            margin: 0;
+        font-family: 'Arial', sans-serif;
+        margin: 0;
             padding: 0;
             background-color: #f8f9fa;
             color: #333;
