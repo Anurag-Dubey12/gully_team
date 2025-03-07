@@ -299,24 +299,43 @@ const PromotionalbannerService = {
     return myBanner;
   },
 
-  async getBannersWithinRadius(latitude, longitude, radiusKm = 15, desiredBannerCount = 7) {
-    
-    const radiusInRadians = radiusKm / 6371;
-    const today = new Date();
-    try {
 
-      const promotionalBanners = await Promotional_Banner_model.find({
-        "locationHistory.point": {
-          $geoWithin: {
-            $centerSphere: [[longitude, latitude], radiusInRadians]
-          }
+  async getBannersWithinRadius(latitude, longitude) {
+    const radiusKm = 15; 
+    const desiredBannerCount = 7;
+
+    try {
+      const promotionalBanners = await Promotional_Banner_model.aggregate([
+        {
+          $geoNear: {
+            near: {
+              type: "Point",
+              coordinates: [longitude, latitude],
+            },
+            distanceField: "distance",
+            spherical: true,
+            maxDistance: radiusKm * 1000,
+          },
         },
-        startDate: { $lte: today },
-        endDate: { $gte: today }
-      }, {
-        locationHistory: 0
-      });
-      
+        {
+          $addFields: {
+            distanceInKm: {
+              $divide: ["$distance", 1000],
+            },
+          },
+        },
+        {
+          $match: {
+            distanceInKm: { $lt: radiusKm }, 
+          },
+        },
+        {
+          $project: {
+            locationHistory: 0,
+          },
+        },
+      ]);
+  
       // If we have enough promotional banners, return them
       // if (promotionalBanners.length >= desiredBannerCount) {
       //   return {
@@ -324,17 +343,18 @@ const PromotionalbannerService = {
       //     bannerType: 'promotional'
       //   };
       // }
+  
       const regularBannersNeeded = desiredBannerCount - promotionalBanners.length;
       console.log("Regular banners needed:", regularBannersNeeded);
+      
       const regularBanners = await Banner.find({
         isActive: true
       })
-        .limit(regularBannersNeeded)
-        .select('-__v');
-
-      // Combine and format both types of banners
+      .limit(regularBannersNeeded)
+      .select('-__v');
+  
       const combinedBanners = promotionalBanners.map(banner => ({
-        ...banner.toObject(),
+        ...banner,
         bannerType: 'promotional'
       }))
       .concat(
@@ -343,16 +363,16 @@ const PromotionalbannerService = {
           bannerType: 'regular'
         }))
       );      
-
+  
       return {
         banners: combinedBanners,
       };
-
+  
     } catch (err) {
       console.log("Error fetching banners within radius:", err);
       throw err;
     }
-  },
+  },  
 
   async updateBanner(bannerId, data) {
 
