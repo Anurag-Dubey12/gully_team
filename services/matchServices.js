@@ -2102,7 +2102,6 @@ async myPerformance(userId, category) {
       const playerStats = team1Players.concat(team2Players).find(
         (player) => player.phoneNumber === userPhoneNumber
       );
-    
       // Calculate total overs bowled by the player
       const oversData = playerStats?.bowling?.overs || {};
       let totalBalls = Object.keys(oversData).reduce((sum, key) => {
@@ -2135,7 +2134,7 @@ async myPerformance(userId, category) {
             : "0.00",
         },
         bowling: {
-          overs: totalBalls === 0 ? "0.0" : totalOversBowled.toFixed(1), // Display total overs in a readable format
+          overs: totalBalls === 0 ? "0.0" : totalOversBowled.toFixed(1),
           runs: playerStats?.bowling?.runs || 0,
           wickets: playerStats?.bowling?.wickets || 0,
           economy: totalBalls > 0
@@ -2156,9 +2155,9 @@ async myPerformance(userId, category) {
     
 
     
-  if (!allPerformances || allPerformances.length === 0) {
-    throw CustomErrorHandler.notFound("Player Performances Not Found");
-  }
+  // if (!allPerformances || allPerformances.length === 0) {
+  //   throw CustomErrorHandler.notFound("Player Performances Not Found");
+  // }
 
   const aggregatedData = {
     batting: {

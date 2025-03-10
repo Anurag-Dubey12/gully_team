@@ -1,7 +1,7 @@
 import axios from "axios";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
-import { FAST_SMS_KEY } from "../config/index.js";
+import { FAST_SMS_KEY, SENDER_ID, MESSAGE_ID } from "../config/index.js";
 import CustomErrorHandler from "../helpers/CustomErrorHandler.js";
 import jwtService from "../helpers/jwtService.js";
 import { Admin, OTP, User, Team } from "../models/index.js";
@@ -198,15 +198,20 @@ const userServices = {
       .map((byte) => (byte % 10).toString())
       .join("")
       .slice(0, otpLength);
-    const route = "otp";
+      
+    const route = "dlt";
 
     const config = {
       params: {
         authorization: apiKey,
+        sender_id: SENDER_ID,
+        message:MESSAGE_ID,
         variables_values: otp,
         route: route,
         numbers: phoneNumber,
+        flash:0
       },
+
       headers: {
         "cache-control": "no-cache",
       },
@@ -272,6 +277,79 @@ const userServices = {
     }
   },
 
+  //Use of Quick SMS API from Fast2sms
+//   async sendOTP(userId, phoneNumber, otpExpiryMinutes) {
+//     const mode = "prod";
+//     const apiUrl = "https://www.fast2sms.com/dev/bulkV2";
+//     const apiKey = FAST_SMS_KEY; 
+//     const otpLength = 5;
+//     const otp = Array.from(crypto.randomBytes(otpLength))
+//       .map((byte) => (byte % 10).toString())
+//       .join("")
+//       .slice(0, otpLength);
+//     const route = "q"; 
+//     const message = `Your OTP code is ${otp}. It will expire in ${otpExpiryMinutes} minutes.`; // Custom message
+
+//     const config = {
+//       headers: {
+//         "authorization": apiKey,
+//         "Content-Type": "application/x-www-form-urlencoded",
+//       },
+//     };
+
+//     const body = new URLSearchParams({
+//       message: message,
+//       language: "english",
+//       route: route,
+//       numbers: phoneNumber,
+//     });
+
+//     const expiryTime = new Date();
+//     expiryTime.setMinutes(expiryTime.getMinutes() + otpExpiryMinutes);
+
+//     const otpexist = await OTP.findOne({ userId });
+
+//     if (otpexist) {
+//       if (otpexist.attempts > 2) {
+//         const currentDate = new Date();
+//         const expiredDate = otpexist.expiryTime;
+//         const timeDifference = currentDate.getTime() - expiredDate.getTime();
+//         const hoursDifference = timeDifference / (1000 * 60 * 60);
+
+//         if (hoursDifference > 5) {
+//           await OTP.updateOne({ _id: otpexist._id }, { attempts: 0 });
+//         } else {
+//           throw CustomErrorHandler.notFound("Maximum attempts exceeded");
+//         }
+//       }
+
+//       await OTP.updateOne(
+//         { _id: otpexist._id },
+//         { otp, expiryTime, $inc: { attempts: 1 } }
+//       );
+//     } else {
+//       await OTP.create({ userId, otp, expiryTime });
+//     }
+
+//     try {
+//       if (mode === "prod") {
+//         const response = await axios.post(apiUrl, body, config); // Use POST request
+//         if (response.data.return === true) {
+//           console.log("OTP sent successfully.");
+//           return true;
+//         } else {
+//           throw new Error("Failed to send OTP.");
+//         }
+//       } else {
+//         return true; // In dev mode, just return true without sending SMS
+//       }
+//     } catch (error) {
+//       console.error("Error sending OTP:", error.response?.data || error.message);
+//       throw CustomErrorHandler.serverError(
+//         error.response?.data?.message ?? "Phone Number not valid"
+//       );
+//     }
+// },
   async verifyOTP(data) {
     console.log(data);
     const otp = data.OTP;
