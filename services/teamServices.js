@@ -1570,12 +1570,6 @@ async addPlayer(data, TeamId, currentUser) {
       throw new Error(error.message);
     }
   }
-
-
-
-
-
-
 };
 
 export default teamServices;

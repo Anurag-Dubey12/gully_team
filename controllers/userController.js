@@ -264,7 +264,7 @@ const userController = {
     const {userId} = req.params;
     try {
       
-      const result = await userServices.deleteProfile(userId);
+      const result = await userServices.deleteProfile();
 
       return res.status(200).json({
         sucess: true,

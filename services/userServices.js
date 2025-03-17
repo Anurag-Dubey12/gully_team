@@ -170,18 +170,17 @@ const userServices = {
 
   async deleteProfile(userId) {
     //Find the user by ID
-    let user = await User.findById(userId);
-
+    const userInfo = global.user;
+    console.log("UserId:",userInfo.userId);
+    let user = await User.findById(userInfo.userId);
     if (!user) {
       // Handle the case where the user is not found
       throw CustomErrorHandler.notFound("User Not Found");
     }
 
     user.isDeleted = true;
-    // // replace the user's email with a random string
-    // user.email = crypto.randomBytes(10).toString("hex") + "@deleted.com";
-    // // replace the user's phoneNumber with a random string
-    // user.phoneNumber = crypto.randomBytes(10).toString("hex");
+    user.email = crypto.randomBytes(10).toString("hex") + "@deleted.com";
+    user.phoneNumber = crypto.randomBytes(10).toString("hex");
 
     // Save the updated user document
     user = await user.save();

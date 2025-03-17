@@ -345,7 +345,6 @@ const PromotionalbannerService = {
       // }
   
       const regularBannersNeeded = desiredBannerCount - promotionalBanners.length;
-      console.log("Regular banners needed:", regularBannersNeeded);
       
       const regularBanners = await Banner.find({
         isActive: true
